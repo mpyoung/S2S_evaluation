@@ -51,6 +51,7 @@ lonlim = [-30,60]
 years	= np.arange(2000,2010+1,1)	# december will always correspond to year-1
 nleads	= 5				# number of lead times (in weeks) in the data
 #season	= 'JJA'
+months = ['01','02','03','04','05','06','07','08','09','10','11','12']
 
 
 '''
@@ -85,7 +86,7 @@ def mask_percentiles(data,percentile,arg):
   return data_mask
 
 
-for season in ['MAM','JJA','SON']:
+for month in months:
 
   if season == 'DJF':
     # for DJF, prepend five weeks starting 1025
@@ -727,11 +728,11 @@ for season in ['MAM','JJA','SON']:
       mymap.drawcoastlines(linewidth=lw)
       #mymap.drawcountries(linewidth=lw)
       mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
       x,y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
   #   uncal = mymap.pcolormesh(x,y,np.nanmean(week_gpcp_mean,axis=(0,1)),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
       uncal = mymap.pcolormesh(x,y,np.nanmean(week_gpcp_mean[0,:,:,:],axis=0),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-      plt.title('GPCP')
+      plt.title('GPCP '+season)
 
     plt.subplot(nrow,ncol,n+6)
     mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
@@ -741,11 +742,11 @@ for season in ['MAM','JJA','SON']:
     mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
     if n in [0]:
       mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+    #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
     x,y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
   # uncal = mymap.pcolormesh(x,y,np.nanmean(week_ukmo_mean,axis=(0,1)),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
     uncal = mymap.pcolormesh(x,y,np.nanmean(week_ukmo_mean[n,:,:,:],axis=0),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('UKMO Week '+str(n+1))
+    plt.title('UKMO '+season+' Week '+str(n+1))
 
     plt.subplot(nrow,ncol,n+11)
     mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
@@ -755,11 +756,11 @@ for season in ['MAM','JJA','SON']:
     mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
     if n in [0]:
       mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+    #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
     x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
   # uncal = mymap.pcolormesh(x,y,np.nanmean(week_ncep_mean,axis=(0,1)),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
     uncal = mymap.pcolormesh(x,y,np.nanmean(week_ncep_mean[n,:,:,:],axis=0),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('NCEP Week '+str(n+1))
+    plt.title('NCEP '+season+' Week '+str(n+1))
 
     plt.subplot(nrow,ncol,n+16)
     mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
@@ -940,9 +941,9 @@ for season in ['MAM','JJA','SON']:
 
   # plot Bias
   cols = 'RdBu'
-  cmin = -5
-  cmax = 5
-  cspc = 1
+  cmin = -10
+  cmax = 10
+  cspc = 2
   clevs = np.arange(cmin,cmax+cspc,cspc)
   clabel1 = 'Bias (mm d$^{-1}$)'
   norm = BoundaryNorm(boundaries=clevs, ncolors=256)
