@@ -50,8 +50,9 @@ lonlim = [-30,60]
 
 years	= np.arange(2000,2010+1,1)	# december will always correspond to year-1
 nleads	= 5				# number of lead times (in weeks) in the data
+nweeks = 20 # number of weeks in season
 #season	= 'JJA'
-seasons = ['JJA']#['DJF','MAM','JJA','SON']
+seasons = ['SON']#['JJA']#['DJF','MAM','JJA','SON']
 
 '''
 Function: 'mask_percentiles':
@@ -391,69 +392,30 @@ for season in seasons:
   ncep_bias_s	= np.nanmean(all_ncep - all_gpcp,axis=(0,2))
   ecmf_bias_s	= np.nanmean(all_ecmf - all_gpcp,axis=(0,2))
 
-  # # Average ACC, RMSE and BIAS over a sub-region at each lead time
-  # sublon = [-60,-35]
-  # sublat = [-25,-5]
-  # subregion_ukmo_lat_id	= np.where((ukmo_lat >= sublat[0]) & (ukmo_lat <= sublat[1]))[0]
-  # subregion_ukmo_lon_id	= np.where((ukmo_lon >= sublon[0]) & (ukmo_lon <= sublon[1]))[0]
-  # subregion_ncep_lat_id	= np.where((ncep_lat >= sublat[0]) & (ncep_lat <= sublat[1]))[0]
-  # subregion_ncep_lon_id	= np.where((ncep_lon >= sublon[0]) & (ncep_lon <= sublon[1]))[0]
-  #
-  # acc_region	= np.zeros((3,nleads))
-  # rmse_region	= np.zeros((3,nleads))
-  # bias_region	= np.zeros((3,nleads))
-  # acc_region[0,:]	= np.nanmean(ukmo_acc[:,subregion_ukmo_lat_id,:][:,:,subregion_ukmo_lon_id],axis=(1,2))
-  # acc_region[1,:]	= np.nanmean(ncep_acc[:,subregion_ncep_lat_id,:][:,:,subregion_ncep_lon_id],axis=(1,2))
-  # acc_region[2,:]	= np.nanmean(ecmf_acc[:,subregion_ncep_lat_id,:][:,:,subregion_ncep_lon_id],axis=(1,2))
-  #
-  # bias_region[0,:]= np.nanmean(ukmo_bias[:,subregion_ukmo_lat_id,:][:,:,subregion_ukmo_lon_id],axis=(1,2))
-  # bias_region[1,:]= np.nanmean(ncep_bias[:,subregion_ncep_lat_id,:][:,:,subregion_ncep_lon_id],axis=(1,2))
-  # bias_region[2,:]= np.nanmean(ecmf_bias[:,subregion_ncep_lat_id,:][:,:,subregion_ncep_lon_id],axis=(1,2))
-  #
-  # rmse_region[0,:]= np.nanmean(ukmo_rmse[:,subregion_ukmo_lat_id,:][:,:,subregion_ukmo_lon_id],axis=(1,2))
-  # rmse_region[1,:]= np.nanmean(ncep_rmse[:,subregion_ncep_lat_id,:][:,:,subregion_ncep_lon_id],axis=(1,2))
-  # rmse_region[2,:]= np.nanmean(ecmf_rmse[:,subregion_ncep_lat_id,:][:,:,subregion_ncep_lon_id],axis=(1,2))
+  '''
+  Tercile probabilities
+  '''
+  percentiles = [100./3.,200./3.]
 
-  fname_bss_ukmo = dir_in+'stats/'+region+'_UKMO_bss_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'.npy'
-  fname_bss_ncep = dir_in+'stats/'+region+'_NCEP_bss_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'.npy'
-  fname_bss_ecmf = dir_in+'stats/'+region+'_ECMWF_bss_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'.npy'
+  fname_p_gpcp = dir_in+'stats/'+region+'_GPCP_p_tercile_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'.npy'
+  fname_p_ukmo = dir_in+'stats/'+region+'_UKMO_p_tercile_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'.npy'
+  fname_p_ncep = dir_in+'stats/'+region+'_NCEP_p_tercile_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'.npy'
+  fname_p_ecmf = dir_in+'stats/'+region+'_ECMWF_p_tercile_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'.npy'
 
-  fname_bss_bc_ukmo = dir_in+'stats/'+region+'_UKMO_bss_bc_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'.npy'
-  fname_bss_bc_ncep = dir_in+'stats/'+region+'_NCEP_bss_bc_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'.npy'
-  fname_bss_bc_ecmf = dir_in+'stats/'+region+'_ECMWF_bss_bc_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'.npy'
+  if os.path.exists(fname_p_ukmo) == False:
 
-  if os.path.exists(fname_bss_ukmo) == False:
-    '''
-    Compute brier skill score for each tercile
-    '''
-    percentiles = [100./3.,200./3.]
-    # work out the climatological frequency from the observations, for each week
-    gpcp_bs_clim = np.zeros((3,nleads,len(ukmo_lat),len(ukmo_lon)))
+    p_gpcp = np.zeros((3,nleads,nweeks,len(years),len(ukmo_lat),len(ukmo_lon)))
+    p_ukmo = np.zeros((3,2,nleads,nweeks,len(years),len(ukmo_lat),len(ukmo_lon)))
+    p_ncep = np.zeros((3,2,nleads,nweeks,len(years),len(ukmo_lat),len(ukmo_lon)))
+    p_ecmf = np.zeros((3,2,nleads,nweeks,len(years),len(ukmo_lat),len(ukmo_lon)))
 
-    ## work out brier score for all forecasts
-    # also make brier skill score comparing with the model climatology
-    ukmo_bs = np.zeros((3,nleads,2,len(ukmo_lat),len(ukmo_lon)))
-    ukmo_bs_bc = np.zeros((3,nleads,2,len(ukmo_lat),len(ukmo_lon)))
-    ncep_bs = np.zeros((3,nleads,2,len(ncep_lat),len(ncep_lon)))
-    ncep_bs_bc = np.zeros((3,nleads,2,len(ncep_lat),len(ncep_lon)))
-    ecmf_bs = np.zeros((3,nleads,2,len(ecmf_lat),len(ecmf_lon)))
-    ecmf_bs_bc = np.zeros((3,nleads,2,len(ecmf_lat),len(ecmf_lon)))
-
-    lag_ncep_bs = np.zeros((3,nleads,2,len(ncep_lat),len(ncep_lon)))
-    lag_ncep_bs_bc = np.zeros((3,nleads,2,len(ncep_lat),len(ncep_lon)))
-    lag_ecmf_bs = np.zeros((3,nleads,2,len(ecmf_lat),len(ecmf_lon)))
-    lag_ecmf_bs_bc = np.zeros((3,nleads,2,len(ecmf_lat),len(ecmf_lon)))
-
-
-    nw = 0
-    for l in np.arange(0,nleads):
-      print 'Computing brier scores during lead week '+str(l+1)
+    for lead in np.arange(nleads):
       for y in np.arange(0,len(years)):
+        nw = 0
         for w in np.arange(0,20):
           print 'week '+str(w+1)+' of 20'
           if l == 0:
             nw = nw + 1
-
           if week_mid_dates[y,l,w,1] in keep_mon:
             # compute the qth percentile of the data along the specified axis, while ignoring nan values.
             # here, it means that find 33% and 66% of gpcp weekly mean precipitation value at each grid cell.
@@ -463,111 +425,51 @@ for season in seasons:
             tmp_gpcp = []
             tmp_gpcp = np.delete(all_gpcp[:,l,w,:,:],y,axis=0)
             gpcp_percentiles = np.nanpercentile(tmp_gpcp,percentiles,axis=0)
-
             curr_gpcp = np.copy(all_gpcp[y,l,w,:,:])
-            # loop through each tercile
-            for ter in [0,1,2]:
-              # empty arrays for counting probabilities
-              c_ukmo = np.zeros((2,len(ukmo_lat),len(ukmo_lon)))
-              c_ukmo_bc = np.zeros((2,len(ukmo_lat),len(ukmo_lon)))
-              c_ncep = np.zeros((2,len(ncep_lat),len(ncep_lon)))
-              c_ncep_bc = np.zeros((2,len(ncep_lat),len(ncep_lon)))
-              c_ecmf = np.zeros((2,len(ecmf_lat),len(ecmf_lon)))
-              c_ecmf_bc = np.zeros((2,len(ecmf_lat),len(ecmf_lon)))
-              c_lag_ncep = np.zeros((2,len(ncep_lat),len(ncep_lon)))
-              c_lag_ncep_bc = np.zeros((2,len(ncep_lat),len(ncep_lon)))
-              c_lag_ecmf = np.zeros((2,len(ecmf_lat),len(ecmf_lon)))
-              c_lag_ecmf_bc = np.zeros((2,len(ecmf_lat),len(ecmf_lon)))
 
-              # 1. Compute climatological brier score
-              if ter == 0: # below 33 percentile
-                p_gpcp = mask_percentiles(curr_gpcp,gpcp_percentiles[0,:,:],'below')
-              elif ter == 1: # between 33 and 66 percentile
-                p_gpcp = mask_percentiles(curr_gpcp,gpcp_percentiles,'between')
-              elif ter == 2: # above 66 percentile
-                p_gpcp = mask_percentiles(curr_gpcp,gpcp_percentiles[1,:,:],'above')
+            # 1. Compute observed probability (will be 1 or 0)
+            p_gpcp[0,lead,w,y,:,:] = mask_percentiles(curr_gpcp,gpcp_percentiles[0,:,:],'below')
+            p_gpcp[1,lead,w,y,:,:] = mask_percentiles(curr_gpcp,gpcp_percentiles,'between')
+            p_gpcp[2,lead,w,y,:,:] = mask_percentiles(curr_gpcp,gpcp_percentiles[1,:,:],'above')
 
-              gpcp_bs_clim[ter,l,:,:] = gpcp_bs_clim[ter,l,:,:] + (0.33 - p_gpcp)**2
+            # compute the probability that the ensemble was
+            # above/below each tercile
+            for e in np.arange(0,ecmf_nmembers):
+              if e < 7: # 1) do UKMO
+                #get percentiles for UKMO
+                tmp_ukmo = []
+                tmp_ukmo = np.delete(all_ukmo_ens[:,l,w,e,:,:],y,axis=0)
+                ukmo_percentiles = np.nanpercentile(tmp_ukmo,percentiles,axis=0)# all_gpcp in (11, 5, 20, 40, 47); gpcp_percentiles in (2, 40, 47)
 
-              # compute brier score for each lead time
-              # compute the probability that the ensemble was
-              # above/below each tercile
-              for e in np.arange(0,ecmf_nmembers):
-                if e < 7: # 1) do UKMO
-                  #get percentiles for UKMO
-                  tmp_ukmo = []
-                  tmp_ukmo = np.delete(all_ukmo_ens[:,l,w,e,:,:],y,axis=0)
-                  ukmo_percentiles = np.nanpercentile(tmp_ukmo,percentiles,axis=0)	# all_gpcp in (11, 5, 20, 40, 47); gpcp_percentiles in (2, 40, 47)
+                curr_ukmo = np.copy(all_ukmo_ens[y,l,w,e,:,:].squeeze())
+                tmp_ukmo = np.zeros((3,2,len(ukmo_lat),len(ukmo_lon)))
+                tmp_ukmo[0,0,:,:] = mask_percentiles(curr_ukmo,gpcp_percentiles[0,:,:],'below')
+                tmp_ukmo[0,1,:,:] = mask_percentiles(curr_ukmo,ukmo_percentiles[0,:,:],'below')
+                tmp_ukmo[1,0,:,:] = mask_percentiles(curr_ukmo,gpcp_percentiles,'between')
+                tmp_ukmo[1,1,:,:] = mask_percentiles(curr_ukmo,ukmo_percentiles,'between')
+                tmp_ukmo[2,0,:,:] = mask_percentiles(curr_ukmo,gpcp_percentiles[1,:,:],'above')
+                tmp_ukmo[2,1,:,:] = mask_percentiles(curr_ukmo,ukmo_percentiles[1,:,:],'above')
+                for tr in np.arange(0,3):
+                  for r in [0,1]:
+                    p_ukmo[tr,r,lead,w,y,:,:] = p_ukmo[tr,r,lead,w,y,:,:] + tmp_ukmo[tr,r,:,:]
 
-                  curr_ukmo = np.copy(all_ukmo_ens[y,l,w,e,:,:].squeeze())
-                  # empty array to store bias corrections
-                  curr_ukmo_bc = np.zeros((2,len(ukmo_lat),len(ukmo_lon)))
-
-                  # DO BIAS CORRECTIONS (UKMO only) for brier score
-                  # 1. Bias correct for given week in season
-                  curr_ukmo_bc[0,:,:] = np.copy(all_ukmo_ens[y,l,w,e,:,:].squeeze()) - np.copy(ukmo_week_bias[l,w,:,:].squeeze())
-                  # 2. Bias correct using overall DJF model bias
-                  curr_ukmo_bc[1,:,:] = np.copy(all_ukmo_ens[y,l,w,e,:,:].squeeze()) - np.copy(ukmo_bias[l,:,:].squeeze())
-
-                  tmp_ukmo = np.zeros(curr_ukmo_bc.shape)
-                  tmp_ukmo_bc = np.zeros(curr_ukmo_bc.shape)
-                  if ter == 0: # below 33 percentile
-                    tmp_ukmo[0,:,:] = mask_percentiles(curr_ukmo,gpcp_percentiles[0,:,:],'below')
-                    tmp_ukmo[1,:,:] = mask_percentiles(curr_ukmo,ukmo_percentiles[0,:,:],'below')
-                    for r in [0,1]: # loop for the 2 different bias corrections
-                      tmp_ukmo_bc[r,:,:] = mask_percentiles(curr_ukmo_bc[r,:,:],gpcp_percentiles[0,:,:],'below')
-
-                  elif ter == 1: # between 33 and 66 percentile
-                    tmp_ukmo[0,:,:] = mask_percentiles(curr_ukmo,gpcp_percentiles,'between')
-                    tmp_ukmo[1,:,:] = mask_percentiles(curr_ukmo,ukmo_percentiles,'between')
-                    for r in [0,1]:
-                      tmp_ukmo_bc[r,:,:] = mask_percentiles(curr_ukmo_bc[r,:,:],gpcp_percentiles,'between')
-
-                  elif ter == 2: # above 66 percentile
-                    tmp_ukmo[0,:,:] = mask_percentiles(curr_ukmo,gpcp_percentiles[1,:,:],'above')
-                    tmp_ukmo[1,:,:] = mask_percentiles(curr_ukmo,ukmo_percentiles[1,:,:],'above')
-                    for r in [0,1]:
-                      tmp_ukmo_bc[r,:,:] = mask_percentiles(curr_ukmo_bc[r,:,:],gpcp_percentiles[1,:,:],'above')
-
-                  c_ukmo = c_ukmo + tmp_ukmo
-                  c_ukmo_bc = c_ukmo_bc + tmp_ukmo_bc
-
-                if e < 4: # bias correct NCEP
-                  # brier skill score for lagged ensembles and ensembles
+                if e < 4:
                   for g in np.arange(0,7): # lag loop
                     #get percentiles for NCEP
                     tmp_ncep = []
                     tmp_ncep = np.delete(all_ncep_ens[:,l,w,g,e,:,:],y,axis=0)
                     ncep_percentiles = np.nanpercentile(tmp_ncep,percentiles,axis=0)
-
                     curr_ncep = np.copy(all_ncep_ens[y,l,w,g,e,:,:])
-                    curr_ncep_bc = np.zeros((2,len(ncep_lat),len(ncep_lon)))
-                    # just correct bias in lagged ensemble means
-                    curr_ncep_bc[0,:,:] = np.copy(all_ncep_ens[y,l,w,g,e,:,:].squeeze()) - np.copy(ncep_week_bias[l,w,:,:].squeeze())
-                    curr_ncep_bc[1,:,:] = np.copy(all_ncep_ens[y,l,w,g,e,:,:].squeeze()) - np.copy(ncep_bias[l,:,:].squeeze())
-
-                    tmp_ncep = np.zeros(curr_ncep_bc.shape)
-                    tmp_ncep_bc = np.zeros(curr_ncep_bc.shape)
-                    if ter == 0: # below 33 percentile
-                      tmp_ncep[0,:,:] = mask_percentiles(curr_ncep,gpcp_percentiles[0,:,:],'below')
-                      tmp_ncep[1,:,:] = mask_percentiles(curr_ncep,ncep_percentiles[0,:,:],'below')
-                      for r in [0,1]: # loop for the 2 different bias corrections
-                        tmp_ncep_bc[r,:,:] = mask_percentiles(curr_ncep_bc[r,:,:],gpcp_percentiles[0,:,:],'below')
-
-                    elif ter == 1: # between 33 and 66 percentile
-                      tmp_ncep[0,:,:] = mask_percentiles(curr_ncep,gpcp_percentiles,'between')
-                      tmp_ncep[1,:,:] = mask_percentiles(curr_ncep,ncep_percentiles,'between')
+                    tmp_ncep = np.zeros((3,2,len(ukmo_lat),len(ukmo_lon)))
+                    tmp_ncep[0,0,:,:] = mask_percentiles(curr_ncep,gpcp_percentiles[0,:,:],'below')
+                    tmp_ncep[0,1,:,:] = mask_percentiles(curr_ncep,ncep_percentiles[0,:,:],'below')
+                    tmp_ncep[1,0,:,:] = mask_percentiles(curr_ncep,gpcp_percentiles,'between')
+                    tmp_ncep[1,1,:,:] = mask_percentiles(curr_ncep,ncep_percentiles,'between')
+                    tmp_ncep[2,0,:,:] = mask_percentiles(curr_ncep,gpcp_percentiles[1,:,:],'above')
+                    tmp_ncep[2,1,:,:] = mask_percentiles(curr_ncep,ncep_percentiles[1,:,:],'above')
+                    for tr in np.arange(0,3):
                       for r in [0,1]:
-                        tmp_ncep_bc[r,:,:] = mask_percentiles(curr_ncep_bc[r,:,:],gpcp_percentiles,'between')
-
-                    elif ter == 2: # above 66 percentile
-                      tmp_ncep[0,:,:] = mask_percentiles(curr_ncep,gpcp_percentiles[1,:,:],'above')
-                      tmp_ncep[1,:,:] = mask_percentiles(curr_ncep,ncep_percentiles[1,:,:],'above')
-                      for r in [0,1]:
-                        tmp_ncep_bc[r,:,:] = mask_percentiles(curr_ncep_bc[r,:,:],gpcp_percentiles[1,:,:],'above')
-
-                    c_ncep = c_ncep + tmp_ncep
-                    c_ncep_bc = c_ncep_bc + tmp_ncep_bc
+                        p_ncep[tr,r,lead,w,y,:,:] = p_ncep[tr,r,lead,w,y,:,:] + tmp_ncep[tr,r,:,:]
 
                 # ECMWF
                 for g in np.arange(0,3):
@@ -575,732 +477,739 @@ for season in seasons:
                   tmp_ecmf = []
                   tmp_ecmf = np.delete(all_ecmf_ens[:,l,w,g,e,:,:],y,axis=0)
                   ecmf_percentiles = np.nanpercentile(tmp_ecmf,percentiles,axis=0)
-
                   curr_ecmf = np.copy(all_ecmf_ens[y,l,w,g,e,:,:])
-                  curr_ecmf_bc = np.zeros((2,len(ecmf_lat),len(ecmf_lon)))
-                  curr_ecmf_bc[0,:,:] = np.copy(all_ecmf_ens[y,l,w,g,e,:,:].squeeze()) - np.copy(ecmf_week_bias[l,w,:,:].squeeze())
-                  curr_ecmf_bc[1,:,:] = np.copy(all_ecmf_ens[y,l,w,g,e,:,:].squeeze()) - np.copy(ecmf_bias[l,:,:].squeeze())
-                  tmp_ecmf = np.zeros(curr_ncep_bc.shape)
-                  tmp_ecmf_bc = np.zeros(curr_ncep_bc.shape)
-                  if ter == 0: # below 33 percentile
-                    tmp_ecmf[0,:,:] = mask_percentiles(curr_ecmf,gpcp_percentiles[0,:,:],'below')
-                    tmp_ecmf[1,:,:] = mask_percentiles(curr_ecmf,ecmf_percentiles[0,:,:],'below')
-                    for r in [0,1]: # loop for the 2 different bias corrections
-                      tmp_ecmf_bc[r,:,:] = mask_percentiles(curr_ecmf_bc[r,:,:],gpcp_percentiles[0,:,:],'below')
-
-                  elif ter == 1: # between 33 and 66 percentile
-                    tmp_ecmf[0,:,:] = mask_percentiles(curr_ecmf,gpcp_percentiles,'between')
-                    tmp_ecmf[1,:,:] = mask_percentiles(curr_ecmf,ecmf_percentiles,'between')
+                  tmp_ecmf = np.zeros((3,2,len(ukmo_lat),len(ukmo_lon)))
+                  tmp_ecmf[0,0,:,:] = mask_percentiles(curr_ecmf,gpcp_percentiles[0,:,:],'below')
+                  tmp_ecmf[0,1,:,:] = mask_percentiles(curr_ecmf,ecmf_percentiles[0,:,:],'below')
+                  tmp_ecmf[1,0,:,:] = mask_percentiles(curr_ecmf,gpcp_percentiles,'between')
+                  tmp_ecmf[1,1,:,:] = mask_percentiles(curr_ecmf,ecmf_percentiles,'between')
+                  tmp_ecmf[2,0,:,:] = mask_percentiles(curr_ecmf,gpcp_percentiles[1,:,:],'above')
+                  tmp_ecmf[2,1,:,:] = mask_percentiles(curr_ecmf,ecmf_percentiles[1,:,:],'above')
+                  for tr in np.arange(0,3):
                     for r in [0,1]:
-                      tmp_ecmf_bc[r,:,:] = mask_percentiles(curr_ecmf_bc[r,:,:],gpcp_percentiles,'between')
+                      p_ecmf[tr,r,lead,w,y,:,:] = p_ecmf[tr,r,lead,w,y,:,:] + tmp_ecmf[tr,r,:,:]
 
-                  elif ter == 2: # above 66 percentile
-                    tmp_ecmf[0,:,:] = mask_percentiles(curr_ecmf,gpcp_percentiles[1,:,:],'above')
-                    tmp_ecmf[1,:,:] = mask_percentiles(curr_ecmf,ecmf_percentiles[1,:,:],'above')
-                    for r in [0,1]:
-                      tmp_ecmf_bc[r,:,:] = mask_percentiles(curr_ecmf_bc[r,:,:],gpcp_percentiles[1,:,:],'above')
+    # At end compute actual Probability
+    p_ukmo = c_ukmo/ukmo_nmembers # probability
+    p_ncep = c_ncep/(ncep_nmembers*7) # probability
+    p_ecmf = c_ecmf/(ecmf_nmembers*3) # probability
 
-                  c_ecmf = c_ecmf + tmp_ecmf
-                  c_ecmf_bc = c_ecmf_bc + tmp_ecmf_bc
+    # save probabilities
+    np.save(fname_p_gpcp,p_gpcp)
+    np.save(fname_p_ukmo,p_ukmo)
+    np.save(fname_p_ncep,p_ncep)
+    np.save(fname_p_ecmf,p_ecmf)
 
-              # Probability and brier score
-              p_ukmo = c_ukmo/ukmo_nmembers # probability
-              p_ncep = c_ncep/(ncep_nmembers*7) # probability
-              p_ecmf = c_ecmf/(ecmf_nmembers*3) # probability
-              for q in [0,1]:
-                ukmo_bs[ter,l,q,:,:] = ukmo_bs[ter,l,q,:,:] + (p_ukmo[q,:,:] - p_gpcp)**2 # brier score sum
-                ncep_bs[ter,l,q,:,:] = ncep_bs[ter,l,q,:,:] + (p_ncep[q,:,:] - p_gpcp)**2 # brier score sum
-                ecmf_bs[ter,l,q,:,:] = ecmf_bs[ter,l,q,:,:] + (p_ecmf[q,:,:] - p_gpcp)**2 # brier score sum
+  else:
+    p_ukmo = np.load(fname_p_ukmo)
+    p_ncep = np.load(fname_p_ncep)
+    p_ecmf = np.load(fname_p_ecmf)
+    nw = len(years)*nweeks
+    ukmo_bs = np.zeros(p_ukmo.shape())
 
-              # Bias corrected probability and brier score
-              p_ukmo_bc = c_ukmo_bc/ukmo_nmembers
-              p_ncep_bc = c_ncep_bc/(ncep_nmembers*7)
-              p_ecmf_bc = c_ecmf_bc/(ecmf_nmembers*3)
-              for r in [0,1]:
-                ukmo_bs_bc[ter,l,r,:,:] = ukmo_bs_bc[ter,l,r,:,:] + (p_ukmo_bc[r,:,:] - p_gpcp)**2
-                ncep_bs_bc[ter,l,r,:,:] = ncep_bs_bc[ter,l,r,:,:] + (p_ncep_bc[r,:,:] - p_gpcp)**2
-                ecmf_bs_bc[ter,l,r,:,:] = ecmf_bs_bc[ter,l,r,:,:] + (p_ecmf_bc[r,:,:] - p_gpcp)**2
+    # brier score
+    for l in np.arange(0,nleads):
+      for ter in np.arange(0,3):
+        gpcp_bs_clim[ter,l,:,:] = np.sum((0.33 - p_gpcp[ter,r,l,:,:,:,:])**2,axis=(0,1))/nw
+        for r in [0,1]:
+          ukmo_bs[ter,r,l,:,:] = np.sum((p_ukmo[ter,r,l,:,:,:,:] - p_gpcp[ter,r,l,:,:,:,:])**2,axis=(0,1))/nw # brier score sum
+          ncep_bs[ter,r,l,:,:] = np.sum((p_ncep[ter,r,l,:,:,:,:] - p_gpcp[ter,r,l,:,:,:,:])**2,axis=(0,1))/nw # brier score sum
+          ecmf_bs[ter,r,l,:,:] = np.sum((p_ecmf[ter,r,l,:,:,:,:] - p_gpcp[ter,r,l,:,:,:,:])**2,axis=(0,1))/nw # brier score sum
 
     gpcp_bs_clim = gpcp_bs_clim/nw	# nw = 220
     ukmo_bss = np.zeros(ukmo_bs.shape)
     ncep_bss = np.zeros(ncep_bs.shape)
     ecmf_bss = np.zeros(ecmf_bs.shape)
     for q in [0,1]:
-      ukmo_bss[:,:,q,:,:] = (gpcp_bs_clim - (ukmo_bs[:,:,q,:,:]/nw)) / gpcp_bs_clim
-      ncep_bss[:,:,q,:,:] = (gpcp_bs_clim - (ncep_bs[:,:,q,:,:]/nw)) / gpcp_bs_clim
-      ecmf_bss[:,:,q,:,:] = (gpcp_bs_clim - (ecmf_bs[:,:,q,:,:]/nw)) / gpcp_bs_clim
+      ukmo_bss[:,q,:,:,:] = (gpcp_bs_clim - (ukmo_bs[:,q,:,:,:])) / gpcp_bs_clim
+      ncep_bss[:,q,:,:,:] = (gpcp_bs_clim - (ncep_bs[:,q,:,:,:])) / gpcp_bs_clim
+      ecmf_bss[:,q,:,:,:] = (gpcp_bs_clim - (ecmf_bs[:,q,:,:,:])) / gpcp_bs_clim
 
-    ukmo_bss_bc = np.zeros(ukmo_bs_bc.shape)
-    ncep_bss_bc = np.zeros(ncep_bs_bc.shape)
-    ecmf_bss_bc = np.zeros(ecmf_bs_bc.shape)
-    for r in [0,1]:
-      ukmo_bss_bc[:,:,r,:,:] = (gpcp_bs_clim - (ukmo_bs_bc[:,:,r,:,:]/nw)) / gpcp_bs_clim
-      ncep_bss_bc[:,:,r,:,:] = (gpcp_bs_clim - (ncep_bs_bc[:,:,r,:,:]/nw)) / gpcp_bs_clim
-      ecmf_bss_bc[:,:,r,:,:] = (gpcp_bs_clim - (ecmf_bs_bc[:,:,r,:,:]/nw)) / gpcp_bs_clim
+    rps_clim = np.zeros((2,nleads,nweeks,len(years),len(ukmo_lat),len(ukmo_lon)))
+    rps_ukmo = np.zeros((2,nleads,nweeks,len(years),len(ukmo_lat),len(ukmo_lon)))
+    rpss_ukmo = np.zeros((2,nleads,len(ukmo_lat),len(ukmo_lon)))
 
-    # save data as takes a while to run
-    np.save(fname_bss_ukmo,ukmo_bss)
-    np.save(fname_bss_ncep,ncep_bss)
-    np.save(fname_bss_ecmf,ecmf_bss)
+    p_tercile = np.array([1.0/3.0,2.0/3.0,1])
+    # Compute ranked probability skill score
+    for l in np.arange(leads):
+      for r in [0,1]:
+        p_sum = cumsum(p_ukmo[:,r,l,:,:,:,:],axis=0)
 
-    np.save(fname_bss_bc_ukmo,ukmo_bss_bc)
-    np.save(fname_bss_bc_ncep,ncep_bss_bc)
-    np.save(fname_bss_bc_ecmf,ecmf_bss_bc)
+        rps_clim[r,l,:,:,:,:] = (p_tercile[0] - p_gpcp[0,r,l,:,:,:,:])**2 + (p_tercile[1] - (p_gpcp[0,r,l,:,:,:,:] + p_gpcp[1,r,l,:,:,:,:]))**2 + (p_tercile[2] - (p_gpcp[0,r,l,:,:,:,:] + p_gpcp[1,r,l,:,:,:,:] + p_gpcp[2,r,l,:,:,:,:]))**2
 
-  else:
-    np.load(fname_bss_ukmo)
-    np.load(fname_bss_ncep)
-    np.load(fname_bss_ecmf)
-    
-    np.load(fname_bss_bc_ukmo)
-    np.load(fname_bss_bc_ncep)
-    np.load(fname_bss_bc_ecmf)
+        rps_ukmo[r,l,:,:,:,:] = (p_ukmo[0,r,l,:,:,:,:] - p_gpcp[0,r,l,:,:,:,:])**2 + ((p_ukmo[0,r,l,:,:,:,:] + p_ukmo[1,r,l,:,:,:,:]) - (p_gpcp[0,r,l,:,:,:,:] + p_gpcp[1,r,l,:,:,:,:]))**2 + ((p_ukmo[0,r,l,:,:,:,:] + p_ukmo[1,r,l,:,:,:,:] + p_ukmo[2,r,l,:,:,:,:]) - (p_gpcp[0,r,l,:,:,:,:] + p_gpcp[1,r,l,:,:,:,:] + p_gpcp[2,r,l,:,:,:,:]))**2
 
-  '''
-  Plot metrics
-  - regional averages at each lead time
-  - spatial maps of mean precipitation, model biases, ACC, BSS
-  '''
-  print 'Plotting figs...'
+    rpss_ukmo = 1 - (np.mean(rps_ukmo,axis=(2,3))/np.mean(rps_clim,axis=(2,3)))
 
-  model_ls= ['UKMO','NCEP','ECMWF']
-  fmt_ls	= ['-o','-x','-+']
-  ms_ls	= [8,10,10]
-  mw_ls	= [1,2,2]
-  col_ls	= ['firebrick','dodgerblue','forestgreen']
-  leads	= np.arange(1,nleads+1,1)
-  #
-  #
-  #
-  # fname_plot = dir_out+region+'_S2S_weekly_ACC_'+season+'_region_average_'+str(years[0])+'_'+str(years[len(years)-1])
-  # size1 = [5,3.5]	# width, height in inches
-  # fig = plt.figure(figsize=(size1[0],size1[1]))
-  # for p in [0,1,2]:
-  #   # ms - markersize
-  #   # mew - markeredgewidth
-  #   # alpha - 0.0 transparent; 1.0 opaque
-  #   plt.plot(leads,acc_region[p,:],fmt_ls[p],color=col_ls[p],linewidth=2,ms=ms_ls[p],alpha=0.9,mew=mw_ls[p])
-  # plt.ylim([0,0.62])
-  # plt.xlim([0.8,5.2])
-  # plt.xticks(np.arange(1,nleads+1,1))
-  # plt.ylabel('ACC')
-  # plt.xlabel('Lead time (weeks)')
-  # plt.legend(model_ls,loc=0)	# loc=0/'best'
-  # plt.savefig(fname_plot+'.pdf',bbox_inches='tight')	# not sure that I understand 'bbox'
-  # #plt.show()
-  # plt.close()
-  #
-  #
-  #
-  # fname_plot = dir_out+region+'_S2S_weekly_RMSE_'+season+'_region_average_'+str(years[0])+'_'+str(years[len(years)-1])
-  # size1 =[5,3.5]
-  # fig = plt.figure(figsize=(size1[0],size1[1]))
-  # for p in [0,1,2]:
-  #   plt.plot(leads,rmse_region[p,:],fmt_ls[p],color=col_ls[p],linewidth=2,ms=ms_ls[p],alpha=0.9,mew=mw_ls[p])
-  # plt.ylim([0.9*np.min(rmse_region),1.1*np.max(rmse_region)])
-  # plt.xlim([0.8,5.2])
-  # plt.xticks(np.arange(1,nleads+1,1))
-  # plt.xticks(leads)
-  # plt.ylabel('RMSE (mm d$^{-1}$)')
-  # plt.xlabel('Lead time (weeks)')
-  # plt.legend(model_ls,loc=0)
-  # plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
-  # #plt.show()
-  # plt.close()
-  #
-  #
-  #
-  # fname_plot = dir_out+region+'_S2S_weekly_Bias_'+season+'_region_average_'+str(years[0])+'_'+str(years[len(years)-1])
-  # size1 =[5,3.5]
-  # fig = plt.figure(figsize=(size1[0],size1[1]))
-  # for p in [0,1,2]:
-  #   plt.plot(leads,bias_region[p,:],fmt_ls[p],color=col_ls[p],linewidth=2,ms=ms_ls[p],alpha=0.9,mew=mw_ls[p])
-  # plt.plot(leads,np.zeros(len(leads)),'-k')
-  # plt.ylim([1.1*np.min(bias_region),1.1*np.max(bias_region)])
-  # plt.xlim([0.8,5.2])
-  # plt.xticks(np.arange(1,nleads+1,1))
-  # plt.ylabel('Bias (mm d$^{-1}$)')
-  # plt.xlabel('Lead time (weeks)')
-  # plt.legend(model_ls,loc=0,prop={'size': 10})
-  # plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
-  # #plt.show()
-  # plt.close()
+    '''
+    Plot metrics
+    - regional averages at each lead time
+    - spatial maps of mean precipitation, model biases, ACC, BSS
+    '''
+    print 'Plotting figs...'
 
 
+    # Average ACC, RMSE and BIAS over a sub-region at each lead time
+    sublon = [-60,-35]
+    sublat = [-25,-5]
+    subregion_ukmo_lat_id	= np.where((ukmo_lat >= sublat[0]) & (ukmo_lat <= sublat[1]))[0]
+    subregion_ukmo_lon_id	= np.where((ukmo_lon >= sublon[0]) & (ukmo_lon <= sublon[1]))[0]
+    subregion_ncep_lat_id	= np.where((ncep_lat >= sublat[0]) & (ncep_lat <= sublat[1]))[0]
+    subregion_ncep_lon_id	= np.where((ncep_lon >= sublon[0]) & (ncep_lon <= sublon[1]))[0]
 
-  # Plot seasonal mean precipitation
-  # web colours
-  # these are hexadecimal colour codes
-  # a hex triplet is a six-digit, three-byte hexadecimal number used in many computing applications to represent colours.
-  # bytes represent the red, green and blue components of the colour.
-  # one byte represent a number in the range 00 to FF (in hexadecimal notation) or 0 to 255 in decimal notation.
-  #precip_colors	= ["#fdfdfd","#f2f2f2","#bfbfbf","#04e9e7","#019ff4","#0300f4","#02fd02","#01c501","#008e00","#fdf802","#e5bc00","#fd9500","#fd0000", "#d40000","#bc0000","#f800fd","#9854c6"]
-  #precip_colormap	= matplotlib.colors.ListedColormap(precip_colors)
-  #cols		= precip_colormap
-  # a sequential colormap
-  # more details can be found https://matplotlib.org/tutorials/colors/colormaps.html
-  cols = 'PuBu'
-  cmin = 0
-  cmax = 16
-  cspc = 2
-  clevs = np.arange(cmin,cmax+cspc,cspc)
-  clabel1 = 'Mean precipitation (mm d$^{-1}$)'
-  # matplotlib.colors.BoundaryNorm generates a colormap index based on discrete intervals.
-  # BoundaryNorm maps values to integers.
-  # BoundaryNorm defines the edges of bins, and data falling within a bin is mapped to the color with the same index.
-  # if the number of bins doesn't equal ncolors, the color is chosen by linear interpolation of the bin number onto color numbers.
-  norm = BoundaryNorm(boundaries=clevs,ncolors=256)
-  lw = 1
-  gl = 20
+    acc_region	= np.zeros((3,nleads))
+    rmse_region	= np.zeros((3,nleads))
+    bias_region	= np.zeros((3,nleads))
+    acc_region[0,:]	= np.nanmean(ukmo_acc[:,subregion_ukmo_lat_id,:][:,:,subregion_ukmo_lon_id],axis=(1,2))
+    acc_region[1,:]	= np.nanmean(ncep_acc[:,subregion_ncep_lat_id,:][:,:,subregion_ncep_lon_id],axis=(1,2))
+    acc_region[2,:]	= np.nanmean(ecmf_acc[:,subregion_ncep_lat_id,:][:,:,subregion_ncep_lon_id],axis=(1,2))
 
-  '''
-  size1 = [5,3.5]
-  fname_plot = dir_out+region+'_GPCC_weekly_mean_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])
-  fig = plt.figure(figsize=(size1[0],size1[1]))
-  mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-  mymap.drawcoastlines(linewidth=lw)
-  mymap.drawcountries(linewidth=lw)
-  # labels list of 4 values that control whether parallels are labelled where they intersect the left, right, top or bottom of the plot.
-  # +/-, north and south latitudes are labelled with "+" and "-", otherwise they are labelled with "N" and "S".
-  mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-  mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-  x,y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
-  # create a psesudocolor plot with a non-regular rectuanglar grid
-  # norm scales the data values to the canonocal colormap range [0,1] for mapping to colors
-  uncal = mymap.pcolormesh(x,y,np.nanmean(week_gpcp_mean,axis=(0,1)),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-  plt.title('GPCP '+season)
-  plt.colorbar(uncal,label=clabel1,extend='max')
-  plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
-  plt.show()
-  plt.close()
-  '''
+    bias_region[0,:]= np.nanmean(ukmo_bias[:,subregion_ukmo_lat_id,:][:,:,subregion_ukmo_lon_id],axis=(1,2))
+    bias_region[1,:]= np.nanmean(ncep_bias[:,subregion_ncep_lat_id,:][:,:,subregion_ncep_lon_id],axis=(1,2))
+    bias_region[2,:]= np.nanmean(ecmf_bias[:,subregion_ncep_lat_id,:][:,:,subregion_ncep_lon_id],axis=(1,2))
 
-  nrow = 4
-  ncol = nleads
-  size1 =[15,12]
-  fname_plot = dir_out+region+'_S2S_weekly_mean_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])
-  fig = plt.figure(figsize=(size1[0],size1[1]))
-  for n in np.arange(0,nleads):
-    if n == 2:
-      plt.subplot(nrow,ncol,3)
+    rmse_region[0,:]= np.nanmean(ukmo_rmse[:,subregion_ukmo_lat_id,:][:,:,subregion_ukmo_lon_id],axis=(1,2))
+    rmse_region[1,:]= np.nanmean(ncep_rmse[:,subregion_ncep_lat_id,:][:,:,subregion_ncep_lon_id],axis=(1,2))
+    rmse_region[2,:]= np.nanmean(ecmf_rmse[:,subregion_ncep_lat_id,:][:,:,subregion_ncep_lon_id],axis=(1,2))
+
+    model_ls= ['UKMO','NCEP','ECMWF']
+    fmt_ls	= ['-o','-x','-+']
+    ms_ls	= [8,10,10]
+    mw_ls	= [1,2,2]
+    col_ls	= ['firebrick','dodgerblue','forestgreen']
+    leads	= np.arange(1,nleads+1,1)
+    #
+    #
+    #
+    # fname_plot = dir_out+region+'_S2S_weekly_ACC_'+season+'_region_average_'+str(years[0])+'_'+str(years[len(years)-1])
+    # size1 = [5,3.5]	# width, height in inches
+    # fig = plt.figure(figsize=(size1[0],size1[1]))
+    # for p in [0,1,2]:
+    #   # ms - markersize
+    #   # mew - markeredgewidth
+    #   # alpha - 0.0 transparent; 1.0 opaque
+    #   plt.plot(leads,acc_region[p,:],fmt_ls[p],color=col_ls[p],linewidth=2,ms=ms_ls[p],alpha=0.9,mew=mw_ls[p])
+    # plt.ylim([0,0.62])
+    # plt.xlim([0.8,5.2])
+    # plt.xticks(np.arange(1,nleads+1,1))
+    # plt.ylabel('ACC')
+    # plt.xlabel('Lead time (weeks)')
+    # plt.legend(model_ls,loc=0)	# loc=0/'best'
+    # plt.savefig(fname_plot+'.pdf',bbox_inches='tight')	# not sure that I understand 'bbox'
+    # #plt.show()
+    # plt.close()
+    #
+    #
+    #
+    # fname_plot = dir_out+region+'_S2S_weekly_RMSE_'+season+'_region_average_'+str(years[0])+'_'+str(years[len(years)-1])
+    # size1 =[5,3.5]
+    # fig = plt.figure(figsize=(size1[0],size1[1]))
+    # for p in [0,1,2]:
+    #   plt.plot(leads,rmse_region[p,:],fmt_ls[p],color=col_ls[p],linewidth=2,ms=ms_ls[p],alpha=0.9,mew=mw_ls[p])
+    # plt.ylim([0.9*np.min(rmse_region),1.1*np.max(rmse_region)])
+    # plt.xlim([0.8,5.2])
+    # plt.xticks(np.arange(1,nleads+1,1))
+    # plt.xticks(leads)
+    # plt.ylabel('RMSE (mm d$^{-1}$)')
+    # plt.xlabel('Lead time (weeks)')
+    # plt.legend(model_ls,loc=0)
+    # plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
+    # #plt.show()
+    # plt.close()
+    #
+    #
+    #
+    # fname_plot = dir_out+region+'_S2S_weekly_Bias_'+season+'_region_average_'+str(years[0])+'_'+str(years[len(years)-1])
+    # size1 =[5,3.5]
+    # fig = plt.figure(figsize=(size1[0],size1[1]))
+    # for p in [0,1,2]:
+    #   plt.plot(leads,bias_region[p,:],fmt_ls[p],color=col_ls[p],linewidth=2,ms=ms_ls[p],alpha=0.9,mew=mw_ls[p])
+    # plt.plot(leads,np.zeros(len(leads)),'-k')
+    # plt.ylim([1.1*np.min(bias_region),1.1*np.max(bias_region)])
+    # plt.xlim([0.8,5.2])
+    # plt.xticks(np.arange(1,nleads+1,1))
+    # plt.ylabel('Bias (mm d$^{-1}$)')
+    # plt.xlabel('Lead time (weeks)')
+    # plt.legend(model_ls,loc=0,prop={'size': 10})
+    # plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
+    # #plt.show()
+    # plt.close()
+
+
+
+    # Plot seasonal mean precipitation
+    # web colours
+    # these are hexadecimal colour codes
+    # a hex triplet is a six-digit, three-byte hexadecimal number used in many computing applications to represent colours.
+    # bytes represent the red, green and blue components of the colour.
+    # one byte represent a number in the range 00 to FF (in hexadecimal notation) or 0 to 255 in decimal notation.
+    #precip_colors	= ["#fdfdfd","#f2f2f2","#bfbfbf","#04e9e7","#019ff4","#0300f4","#02fd02","#01c501","#008e00","#fdf802","#e5bc00","#fd9500","#fd0000", "#d40000","#bc0000","#f800fd","#9854c6"]
+    #precip_colormap	= matplotlib.colors.ListedColormap(precip_colors)
+    #cols		= precip_colormap
+    # a sequential colormap
+    # more details can be found https://matplotlib.org/tutorials/colors/colormaps.html
+    cols = 'PuBu'
+    cmin = 0
+    cmax = 16
+    cspc = 2
+    clevs = np.arange(cmin,cmax+cspc,cspc)
+    clabel1 = 'Mean precipitation (mm d$^{-1}$)'
+    # matplotlib.colors.BoundaryNorm generates a colormap index based on discrete intervals.
+    # BoundaryNorm maps values to integers.
+    # BoundaryNorm defines the edges of bins, and data falling within a bin is mapped to the color with the same index.
+    # if the number of bins doesn't equal ncolors, the color is chosen by linear interpolation of the bin number onto color numbers.
+    norm = BoundaryNorm(boundaries=clevs,ncolors=256)
+    lw = 1
+    gl = 20
+
+    '''
+    size1 = [5,3.5]
+    fname_plot = dir_out+region+'_GPCC_weekly_mean_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])
+    fig = plt.figure(figsize=(size1[0],size1[1]))
+    mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+    mymap.drawcoastlines(linewidth=lw)
+    mymap.drawcountries(linewidth=lw)
+    # labels list of 4 values that control whether parallels are labelled where they intersect the left, right, top or bottom of the plot.
+    # +/-, north and south latitudes are labelled with "+" and "-", otherwise they are labelled with "N" and "S".
+    mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+    x,y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
+    # create a psesudocolor plot with a non-regular rectuanglar grid
+    # norm scales the data values to the canonocal colormap range [0,1] for mapping to colors
+    uncal = mymap.pcolormesh(x,y,np.nanmean(week_gpcp_mean,axis=(0,1)),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+    plt.title('GPCP '+season)
+    plt.colorbar(uncal,label=clabel1,extend='max')
+    plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    '''
+
+    nrow = 4
+    ncol = nleads
+    size1 =[15,12]
+    fname_plot = dir_out+region+'_S2S_weekly_mean_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])
+    fig = plt.figure(figsize=(size1[0],size1[1]))
+    for n in np.arange(0,nleads):
+      if n == 2:
+        plt.subplot(nrow,ncol,3)
+        mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+        mymap.drawcoastlines(linewidth=lw)
+        #mymap.drawcountries(linewidth=lw)
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+        mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+        x,y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
+    #   uncal = mymap.pcolormesh(x,y,np.nanmean(week_gpcp_mean,axis=(0,1)),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+        uncal = mymap.pcolormesh(x,y,np.nanmean(week_gpcp_mean[0,:,:,:],axis=0),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+        plt.title('GPCP')
+
+      plt.subplot(nrow,ncol,n+6)
       mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
       mymap.drawcoastlines(linewidth=lw)
       #mymap.drawcountries(linewidth=lw)
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if n in [0]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
       mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
       x,y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
-  #   uncal = mymap.pcolormesh(x,y,np.nanmean(week_gpcp_mean,axis=(0,1)),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-      uncal = mymap.pcolormesh(x,y,np.nanmean(week_gpcp_mean[0,:,:,:],axis=0),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-      plt.title('GPCP')
+    # uncal = mymap.pcolormesh(x,y,np.nanmean(week_ukmo_mean,axis=(0,1)),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      uncal = mymap.pcolormesh(x,y,np.nanmean(week_ukmo_mean[n,:,:,:],axis=0),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('UKMO Week '+str(n+1))
 
-    plt.subplot(nrow,ncol,n+6)
-    mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    #mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if n in [0]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x,y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
-  # uncal = mymap.pcolormesh(x,y,np.nanmean(week_ukmo_mean,axis=(0,1)),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    uncal = mymap.pcolormesh(x,y,np.nanmean(week_ukmo_mean[n,:,:,:],axis=0),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('UKMO Week '+str(n+1))
+      plt.subplot(nrow,ncol,n+11)
+      mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      #mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if n in [0]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
+    # uncal = mymap.pcolormesh(x,y,np.nanmean(week_ncep_mean,axis=(0,1)),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      uncal = mymap.pcolormesh(x,y,np.nanmean(week_ncep_mean[n,:,:,:],axis=0),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('NCEP Week '+str(n+1))
 
-    plt.subplot(nrow,ncol,n+11)
-    mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    #mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if n in [0]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-  # uncal = mymap.pcolormesh(x,y,np.nanmean(week_ncep_mean,axis=(0,1)),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    uncal = mymap.pcolormesh(x,y,np.nanmean(week_ncep_mean[n,:,:,:],axis=0),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('NCEP Week '+str(n+1))
+      plt.subplot(nrow,ncol,n+16)
+      mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      #mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if n in [0]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
+    # uncal = mymap.pcolormesh(x,y,np.nanmean(week_ecmf_mean,axis=(0,1)),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      uncal = mymap.pcolormesh(x,y,np.nanmean(week_ecmf_mean[n,:,:,:],axis=0),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('ECMWF Week '+str(n+1))
 
-    plt.subplot(nrow,ncol,n+16)
-    mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    #mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if n in [0]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-  # uncal = mymap.pcolormesh(x,y,np.nanmean(week_ecmf_mean,axis=(0,1)),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    uncal = mymap.pcolormesh(x,y,np.nanmean(week_ecmf_mean[n,:,:,:],axis=0),vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('ECMWF Week '+str(n+1))
-
-  plt.suptitle(season,fontweight='bold',fontsize=14,horizontalalignment='left')
-  plt.tight_layout(pad=2.5,w_pad=0.02,h_pad=1.3)
-  fig.subplots_adjust(right=0.90)
-  cbar_pos = [0.92, 0.10, 0.015, 0.35] #[left, bottom, width, height]
-  cbar_ax = fig.add_axes(cbar_pos)
-  cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='max')
-  plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
-  #plt.show()
-  plt.close()
+    plt.suptitle(season,fontweight='bold',fontsize=14,horizontalalignment='left')
+    plt.tight_layout(pad=2.5,w_pad=0.02,h_pad=1.3)
+    fig.subplots_adjust(right=0.90)
+    cbar_pos = [0.92, 0.10, 0.015, 0.35] #[left, bottom, width, height]
+    cbar_ax = fig.add_axes(cbar_pos)
+    cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='max')
+    plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
+    #plt.show()
+    plt.close()
 
 
 
-  '''
-  # plot ACC just at lead times Week 1, Week 3 and Week 5 (save on panels)
-  cols = 'RdYlBu'
-  cmin = -1
-  cmax = 1
-  cspc = 0.2
-  clevs = np.arange(cmin,cmax+cspc,cspc)
-  clabel1 = 'ACC'
-  norm = BoundaryNorm(boundaries=clevs, ncolors=256)
+    '''
+    # plot ACC just at lead times Week 1, Week 3 and Week 5 (save on panels)
+    cols = 'RdYlBu'
+    cmin = -1
+    cmax = 1
+    cspc = 0.2
+    clevs = np.arange(cmin,cmax+cspc,cspc)
+    clabel1 = 'ACC'
+    norm = BoundaryNorm(boundaries=clevs, ncolors=256)
 
-  lw = 1
-  nrow = 3
-  ncol = 3
-  size1=[10,9.5]
-  gl = 20
-  fname_plot = dir_out+region+'_S2S_weekly_sub_ACC_DJF_'+str(years[0])+'_'+str(years[len(years)-1])
-  fig = plt.figure(figsize=(size1[0],size1[1]))
-  nc = 0
-  for n in [0,2,4]:
-    nc = nc + 1
-    plt.subplot(nrow,ncol,nc)
-    mymap = Basemap(projection='cyl',resolution='l',\
-            llcrnrlat=latlim[0],urcrnrlat=latlim[1],\
-            llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if nc in [1,4,7]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x, y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
-    uncal = mymap.pcolormesh(x,y,ukmo_acc[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+    lw = 1
+    nrow = 3
+    ncol = 3
+    size1=[10,9.5]
+    gl = 20
+    fname_plot = dir_out+region+'_S2S_weekly_sub_ACC_DJF_'+str(years[0])+'_'+str(years[len(years)-1])
+    fig = plt.figure(figsize=(size1[0],size1[1]))
+    nc = 0
+    for n in [0,2,4]:
+      nc = nc + 1
+      plt.subplot(nrow,ncol,nc)
+      mymap = Basemap(projection='cyl',resolution='l',\
+              llcrnrlat=latlim[0],urcrnrlat=latlim[1],\
+              llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if nc in [1,4,7]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x, y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
+      uncal = mymap.pcolormesh(x,y,ukmo_acc[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
 
-    plt.title('UKMO Week '+str(n+1))
+      plt.title('UKMO Week '+str(n+1))
 
-    nc = nc + 1
-    plt.subplot(nrow,ncol,nc)
-    mymap = Basemap(projection='cyl',resolution='l',\
-            llcrnrlat=latlim[0],urcrnrlat=latlim[1],\
-            llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if nc in [1,4,7]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-    uncal = mymap.pcolormesh(x,y,ncep_acc[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('NCEP Week '+str(n+1))
+      nc = nc + 1
+      plt.subplot(nrow,ncol,nc)
+      mymap = Basemap(projection='cyl',resolution='l',\
+              llcrnrlat=latlim[0],urcrnrlat=latlim[1],\
+              llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if nc in [1,4,7]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
+      uncal = mymap.pcolormesh(x,y,ncep_acc[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('NCEP Week '+str(n+1))
 
-    nc = nc + 1
-    plt.subplot(nrow,ncol,nc)
-    mymap = Basemap(projection='cyl',resolution='l',\
-            llcrnrlat=latlim[0],urcrnrlat=latlim[1],\
-            llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if nc in [1,4,7]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-    uncal = mymap.pcolormesh(x,y,ecmf_acc[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('ECMWF Week '+str(n+1))
+      nc = nc + 1
+      plt.subplot(nrow,ncol,nc)
+      mymap = Basemap(projection='cyl',resolution='l',\
+              llcrnrlat=latlim[0],urcrnrlat=latlim[1],\
+              llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if nc in [1,4,7]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
+      uncal = mymap.pcolormesh(x,y,ecmf_acc[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('ECMWF Week '+str(n+1))
 
-  plt.tight_layout(pad=2.5,w_pad=0.02,h_pad=0.6)
-  fig.subplots_adjust(right=0.90)
-  cbar_pos = [0.92, 0.22, 0.015, 0.55] #[left, bottom, width, height]
-  cbar_ax = fig.add_axes(cbar_pos)
-  cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='both')
-  plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
-  plt.show()
-  plt.close()
-  '''
-
-
-
-  # plot ACC
-  cols = 'RdYlBu'
-  cmin = -1
-  cmax = 1
-  cspc = 0.2
-  clevs = np.arange(cmin,cmax+cspc,cspc)
-  clabel1 = 'ACC'
-  norm = BoundaryNorm(boundaries=clevs, ncolors=256)
-
-  lw = 1
-  nrow = 3
-  ncol = nleads
-  size1=[15,9]
-  gl = 20
-  fname_plot = dir_out+region+'_S2S_weekly_ACC_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])
-  fig = plt.figure(figsize=(size1[0],size1[1]))
-  for n in np.arange(0,nleads):
-    plt.subplot(nrow,ncol,n+1)
-    mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    #mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if n in [0]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x, y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
-    uncal = mymap.pcolormesh(x,y,ukmo_acc[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-
-    plt.title('UKMO Week '+str(n+1))
-
-    plt.subplot(nrow,ncol,n+6)
-    mymap = Basemap(projection='cyl',resolution='l',\
-            llcrnrlat=latlim[0],urcrnrlat=latlim[1],\
-            llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    #mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if n in [0]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-    uncal = mymap.pcolormesh(x,y,ncep_acc[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('NCEP Week '+str(n+1))
-
-    plt.subplot(nrow,ncol,n+11)
-    mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    #mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if n in [0]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-    uncal = mymap.pcolormesh(x,y,ecmf_acc[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('ECMWF Week '+str(n+1))
-
-  plt.suptitle(season,fontweight='bold',fontsize=14,horizontalalignment='left')
-  plt.tight_layout(pad=2.5,w_pad=0.02,h_pad=0.5)
-  fig.subplots_adjust(right=0.90)
-  cbar_pos = [0.92, 0.22, 0.015, 0.55] #[left, bottom, width, height]
-  cbar_ax = fig.add_axes(cbar_pos)
-  cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='both')
-  plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
-  #plt.show()
-  plt.close()
+    plt.tight_layout(pad=2.5,w_pad=0.02,h_pad=0.6)
+    fig.subplots_adjust(right=0.90)
+    cbar_pos = [0.92, 0.22, 0.015, 0.55] #[left, bottom, width, height]
+    cbar_ax = fig.add_axes(cbar_pos)
+    cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='both')
+    plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
+    plt.show()
+    plt.close()
+    '''
 
 
 
-  # plot Bias
-  cols = 'RdBu'
-  cmin = -5
-  cmax = 5
-  cspc = 1
-  clevs = np.arange(cmin,cmax+cspc,cspc)
-  clabel1 = 'Bias (mm d$^{-1}$)'
-  norm = BoundaryNorm(boundaries=clevs, ncolors=256)
+    # plot ACC
+    cols = 'RdYlBu'
+    cmin = -1
+    cmax = 1
+    cspc = 0.2
+    clevs = np.arange(cmin,cmax+cspc,cspc)
+    clabel1 = 'ACC'
+    norm = BoundaryNorm(boundaries=clevs, ncolors=256)
 
-  lw = 1
-  nrow = 3
-  ncol = nleads
-  gl = 20
-  fname_plot = dir_out+region+'_S2S_weekly_Bias_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])
-  fig = plt.figure(figsize=(15,9))
-  for n in np.arange(0,nleads):
-    plt.subplot(nrow,ncol,n+1)#indexes goes from 1 to nrows * ncols
-    mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    #mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if n in [0]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x,y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
-    tmp_bias = []
-    tmp_bias = np.copy(ukmo_bias[n,:,:])
-    tmp_bias[tmp_bias == 0] = np.nan
-    uncal = mymap.pcolormesh(x,y,tmp_bias,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('UKMO Week '+str(n+1))
+    lw = 1
+    nrow = 3
+    ncol = nleads
+    size1=[15,9]
+    gl = 20
+    fname_plot = dir_out+region+'_S2S_weekly_ACC_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])
+    fig = plt.figure(figsize=(size1[0],size1[1]))
+    for n in np.arange(0,nleads):
+      plt.subplot(nrow,ncol,n+1)
+      mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      #mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if n in [0]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x, y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
+      uncal = mymap.pcolormesh(x,y,ukmo_acc[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
 
-    plt.subplot(nrow,ncol,n+6)
-    mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    #mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if n in [0]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-    tmp_bias = []
-    tmp_bias = np.copy(ncep_bias[n,:,:])
-    tmp_bias[tmp_bias == 0] = np.nan
-    uncal = mymap.pcolormesh(x,y,tmp_bias,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('NCEP Week '+str(n+1))
+      plt.title('UKMO Week '+str(n+1))
 
-    plt.subplot(nrow,ncol,n+11)
-    mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    #mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if n in [0]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-    tmp_bias = []
-    tmp_bias = np.copy(ecmf_bias[n,:,:])
-    tmp_bias[tmp_bias == 0] = np.nan
-    uncal = mymap.pcolormesh(x,y,tmp_bias,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('ECMWF Week '+str(n+1))
+      plt.subplot(nrow,ncol,n+6)
+      mymap = Basemap(projection='cyl',resolution='l',\
+              llcrnrlat=latlim[0],urcrnrlat=latlim[1],\
+              llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      #mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if n in [0]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
+      uncal = mymap.pcolormesh(x,y,ncep_acc[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('NCEP Week '+str(n+1))
 
-  plt.suptitle(season,fontweight='bold',fontsize=14,horizontalalignment='left')
-  plt.tight_layout(pad=2.5,w_pad=0.02,h_pad=0.5)
-  fig.subplots_adjust(right=0.90)
-  cbar_pos = [0.92, 0.22, 0.015, 0.55] #[left, bottom, width, height]
-  cbar_ax = fig.add_axes(cbar_pos)
-  cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='both')
-  plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
-  #plt.show()
-  plt.close()
+      plt.subplot(nrow,ncol,n+11)
+      mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      #mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if n in [0]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
+      uncal = mymap.pcolormesh(x,y,ecmf_acc[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('ECMWF Week '+str(n+1))
+
+    plt.suptitle(season,fontweight='bold',fontsize=14,horizontalalignment='left')
+    plt.tight_layout(pad=2.5,w_pad=0.02,h_pad=0.5)
+    fig.subplots_adjust(right=0.90)
+    cbar_pos = [0.92, 0.22, 0.015, 0.55] #[left, bottom, width, height]
+    cbar_ax = fig.add_axes(cbar_pos)
+    cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='both')
+    plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
+    #plt.show()
+    plt.close()
 
 
 
-  '''
-  # plot bias for lead times week 1 and 5 only
-  nrow = 2
-  ncol = 3
-  size1=[10,7]
-  week_want = [0,4] # index for weeks want
-  fname_plot = dir_out+region+'_S2S_weekly_1&5_Bias_DJF_'+str(years[0])+'_'+str(years[len(years)-1])
-  fig = plt.figure(figsize=(size1[0],size1[1]))
-  nc = 0
-  for n in week_want:
-    nc = nc + 1
-    plt.subplot(nrow,ncol,nc)
-    mymap = Basemap(projection='cyl',resolution='l',\
-            llcrnrlat=latlim[0],urcrnrlat=latlim[1],\
-            llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if nc in [1,4]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x, y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
-    uncal = mymap.pcolormesh(x,y,ukmo_bias[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('UKMO Week '+str(n+1))
-    nc = nc + 1
+    # plot Bias
+    cols = 'RdBu'
+    cmin = -5
+    cmax = 5
+    cspc = 1
+    clevs = np.arange(cmin,cmax+cspc,cspc)
+    clabel1 = 'Bias (mm d$^{-1}$)'
+    norm = BoundaryNorm(boundaries=clevs, ncolors=256)
 
-    plt.subplot(nrow,ncol,nc)
-    mymap = Basemap(projection='cyl',resolution='l',\
-            llcrnrlat=latlim[0],urcrnrlat=latlim[1],\
-            llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    mymap.drawcountries(linewidth=lw)
+    lw = 1
+    nrow = 3
+    ncol = nleads
+    gl = 20
+    fname_plot = dir_out+region+'_S2S_weekly_Bias_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])
+    fig = plt.figure(figsize=(15,9))
+    for n in np.arange(0,nleads):
+      plt.subplot(nrow,ncol,n+1)#indexes goes from 1 to nrows * ncols
+      mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      #mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if n in [0]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x,y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
+      tmp_bias = []
+      tmp_bias = np.copy(ukmo_bias[n,:,:])
+      tmp_bias[tmp_bias == 0] = np.nan
+      uncal = mymap.pcolormesh(x,y,tmp_bias,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('UKMO Week '+str(n+1))
 
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if nc in [1,4]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-    #uncal = mymap.contourf(x,y,ukmo_acc[n,:,:],clevs,cmap=cols,extend='both')
-    uncal = mymap.pcolormesh(x,y,ncep_bias[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('NCEP Week '+str(n+1))
+      plt.subplot(nrow,ncol,n+6)
+      mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      #mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if n in [0]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
+      tmp_bias = []
+      tmp_bias = np.copy(ncep_bias[n,:,:])
+      tmp_bias[tmp_bias == 0] = np.nan
+      uncal = mymap.pcolormesh(x,y,tmp_bias,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('NCEP Week '+str(n+1))
 
-    nc = nc + 1
-    plt.subplot(nrow,ncol,nc)
-    mymap = Basemap(projection='cyl',resolution='l',\
-            llcrnrlat=latlim[0],urcrnrlat=latlim[1],\
-            llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if nc in [1,4]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-    uncal = mymap.pcolormesh(x,y,ecmf_bias[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('ECMWF Week '+str(n+1))
+      plt.subplot(nrow,ncol,n+11)
+      mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      #mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if n in [0]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
+      tmp_bias = []
+      tmp_bias = np.copy(ecmf_bias[n,:,:])
+      tmp_bias[tmp_bias == 0] = np.nan
+      uncal = mymap.pcolormesh(x,y,tmp_bias,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('ECMWF Week '+str(n+1))
 
-  plt.tight_layout(pad=2.5,w_pad=0.02,h_pad=0.4)
-  fig.subplots_adjust(right=0.90)
-  cbar_pos = [0.92, 0.22, 0.015, 0.55] #[left, bottom, width, height]
-  cbar_ax = fig.add_axes(cbar_pos)
-  cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='both')
-  plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
-  #plt.show()
-  plt.close()
-  '''
-
-
-
-  # plot RMSE
-  cols = 'YlOrRd'
-  cmin = 0
-  cmax = 16
-  cspc = 2
-  clevs = np.arange(cmin,cmax+cspc,cspc)
-  clabel1 = 'RMSE (mm d$^{-1}$)'
-  norm = BoundaryNorm(boundaries=clevs, ncolors=256)
-
-  lw = 1
-  nrow = 3
-  ncol = nleads
-  size1=[15,9]
-  gl = 20
-  fname_plot = dir_out+region+'_S2S_weekly_RMSE_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])
-  fig = plt.figure(figsize=(size1[0],size1[1]))
-  for n in np.arange(0,nleads):
-    plt.subplot(nrow,ncol,n+1)
-    mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    #mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if n in [0]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x, y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
-    tmp_bias = []
-    tmp_bias = np.copy(ukmo_rmse[n,:,:])
-    tmp_bias[tmp_bias == 0] = np.nan
-    uncal = mymap.pcolormesh(x,y,tmp_bias,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('UKMO Week '+str(n+1))
-
-    plt.subplot(nrow,ncol,n+6)
-    mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    #mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if n in [0]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-    tmp_bias = []
-    tmp_bias = np.copy(ncep_rmse[n,:,:])
-    tmp_bias[tmp_bias == 0] = np.nan
-    uncal = mymap.pcolormesh(x,y,tmp_bias,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('NCEP Week '+str(n+1))
-
-    plt.subplot(nrow,ncol,n+11)
-    mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-    mymap.drawcoastlines(linewidth=lw)
-    #mymap.drawcountries(linewidth=lw)
-    mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-    if n in [0]:
-      mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-    mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-    x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-    tmp_bias = []
-    tmp_bias = np.copy(ecmf_rmse[n,:,:])
-    tmp_bias[tmp_bias == 0] = np.nan
-    uncal = mymap.pcolormesh(x,y,tmp_bias,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-    plt.title('ECMWF Week '+str(n+1))
-
-  plt.suptitle(season,fontweight='bold',fontsize=14,horizontalalignment='left')
-  plt.tight_layout(pad=2.5,w_pad=0.02,h_pad=0.4)
-  fig.subplots_adjust(right=0.90)
-  cbar_pos = [0.92, 0.22, 0.015, 0.55] #[left, bottom, width, height]
-  cbar_ax = fig.add_axes(cbar_pos)
-  cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='max')
-  plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
-  #plt.show()
-  plt.close()
+    plt.suptitle(season,fontweight='bold',fontsize=14,horizontalalignment='left')
+    plt.tight_layout(pad=2.5,w_pad=0.02,h_pad=0.5)
+    fig.subplots_adjust(right=0.90)
+    cbar_pos = [0.92, 0.22, 0.015, 0.55] #[left, bottom, width, height]
+    cbar_ax = fig.add_axes(cbar_pos)
+    cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='both')
+    plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
+    #plt.show()
+    plt.close()
 
 
 
-  # plot BSS
-  tercile_name = ['Below','Normal','Above']
-  cols = 'RdYlBu'
-  clabel1 = 'BSS'
-  lw = 1
-  nrow = 3
-  ncol = 5
-  size1 = [15,9]
-  gl = 20
+    '''
+    # plot bias for lead times week 1 and 5 only
+    nrow = 2
+    ncol = 3
+    size1=[10,7]
+    week_want = [0,4] # index for weeks want
+    fname_plot = dir_out+region+'_S2S_weekly_1&5_Bias_DJF_'+str(years[0])+'_'+str(years[len(years)-1])
+    fig = plt.figure(figsize=(size1[0],size1[1]))
+    nc = 0
+    for n in week_want:
+      nc = nc + 1
+      plt.subplot(nrow,ncol,nc)
+      mymap = Basemap(projection='cyl',resolution='l',\
+              llcrnrlat=latlim[0],urcrnrlat=latlim[1],\
+              llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if nc in [1,4]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x, y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
+      uncal = mymap.pcolormesh(x,y,ukmo_bias[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('UKMO Week '+str(n+1))
+      nc = nc + 1
 
-  cmin = -0.5
-  cmax = 0.5
-  cspc = 0.1
-  clevs = np.arange(cmin,cmax+cspc,cspc)
-  norm = BoundaryNorm(boundaries=clevs,ncolors=256)
+      plt.subplot(nrow,ncol,nc)
+      mymap = Basemap(projection='cyl',resolution='l',\
+              llcrnrlat=latlim[0],urcrnrlat=latlim[1],\
+              llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      mymap.drawcountries(linewidth=lw)
 
-  for vv in [0,1]: # loop for own brier score
-    if vv == 0:
-      flag = 'comp_gpcc_clim'
-    elif vv == 1:
-      flag = 'comp_own_clim'
-    for tc in [0,1,2]:
-      fname_plot = dir_out+region+'_S2S_weekly_BSS_'+flag+'_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'_'+tercile_name[tc]
-      fig = plt.figure(figsize=(size1[0],size1[1]))
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if nc in [1,4]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
+      #uncal = mymap.contourf(x,y,ukmo_acc[n,:,:],clevs,cmap=cols,extend='both')
+      uncal = mymap.pcolormesh(x,y,ncep_bias[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('NCEP Week '+str(n+1))
 
-      for n in np.arange(0,nleads):
-        plt.subplot(nrow,ncol,n+1)
-        mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-        mymap.drawcoastlines(linewidth=lw)
-        #mymap.drawcountries(linewidth=lw)
-        mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-        mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-        if n in [0]:
-          mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-        #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-        x,y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
-        mask_array = np.ma.array(ukmo_bss[tc,n,vv,:,:]*dry_mask, mask=np.isnan(dry_mask))
-        uncal = mymap.pcolormesh(x,y,mask_array,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-        plt.title('UKMO Week '+str(n+1))
+      nc = nc + 1
+      plt.subplot(nrow,ncol,nc)
+      mymap = Basemap(projection='cyl',resolution='l',\
+              llcrnrlat=latlim[0],urcrnrlat=latlim[1],\
+              llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if nc in [1,4]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
+      uncal = mymap.pcolormesh(x,y,ecmf_bias[n,:,:],vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('ECMWF Week '+str(n+1))
 
-        plt.subplot(nrow,ncol,n+6)
-        mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-        mymap.drawcoastlines(linewidth=lw)
-        #mymap.drawcountries(linewidth=lw)
-        mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-        mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-        if n in [0]:
-          mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-        #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-        x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-        mask_array = np.ma.array(ncep_bss[tc,n,vv,:,:]*dry_mask, mask=np.isnan(dry_mask))
-        uncal = mymap.pcolormesh(x,y,mask_array,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-        plt.title('NCEP Week '+str(n+1))
+    plt.tight_layout(pad=2.5,w_pad=0.02,h_pad=0.4)
+    fig.subplots_adjust(right=0.90)
+    cbar_pos = [0.92, 0.22, 0.015, 0.55] #[left, bottom, width, height]
+    cbar_ax = fig.add_axes(cbar_pos)
+    cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='both')
+    plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
+    #plt.show()
+    plt.close()
+    '''
 
-        plt.subplot(nrow,ncol,n+11)
-        mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
-        mymap.drawcoastlines(linewidth=lw)
-        #mymap.drawcountries(linewidth=lw)
-        mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
-        mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
-        if n in [0]:
-          mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
-        mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
-        x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-        mask_array = np.ma.array(ecmf_bss[tc,n,vv,:,:]*dry_mask, mask=np.isnan(dry_mask))
-        uncal = mymap.pcolormesh(x,y,mask_array,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
-        plt.title('ECMWF Week '+str(n+1))
 
-      plt.suptitle(season,fontweight='bold',fontsize=14,horizontalalignment='left')
-      plt.tight_layout(pad=2.5,w_pad=0.02,h_pad=0.4)
-      fig.subplots_adjust(right=0.90)
-      cbar_pos = [0.92, 0.22, 0.015, 0.55] #[left, bottom, width, height]
 
-      cbar_ax = fig.add_axes(cbar_pos)
-      cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='both')
-      plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
-    # plt.show()
-      plt.close()
+    # plot RMSE
+    cols = 'YlOrRd'
+    cmin = 0
+    cmax = 16
+    cspc = 2
+    clevs = np.arange(cmin,cmax+cspc,cspc)
+    clabel1 = 'RMSE (mm d$^{-1}$)'
+    norm = BoundaryNorm(boundaries=clevs, ncolors=256)
+
+    lw = 1
+    nrow = 3
+    ncol = nleads
+    size1=[15,9]
+    gl = 20
+    fname_plot = dir_out+region+'_S2S_weekly_RMSE_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])
+    fig = plt.figure(figsize=(size1[0],size1[1]))
+    for n in np.arange(0,nleads):
+      plt.subplot(nrow,ncol,n+1)
+      mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      #mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if n in [0]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x, y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
+      tmp_bias = []
+      tmp_bias = np.copy(ukmo_rmse[n,:,:])
+      tmp_bias[tmp_bias == 0] = np.nan
+      uncal = mymap.pcolormesh(x,y,tmp_bias,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('UKMO Week '+str(n+1))
+
+      plt.subplot(nrow,ncol,n+6)
+      mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      #mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if n in [0]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
+      tmp_bias = []
+      tmp_bias = np.copy(ncep_rmse[n,:,:])
+      tmp_bias[tmp_bias == 0] = np.nan
+      uncal = mymap.pcolormesh(x,y,tmp_bias,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('NCEP Week '+str(n+1))
+
+      plt.subplot(nrow,ncol,n+11)
+      mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+      mymap.drawcoastlines(linewidth=lw)
+      #mymap.drawcountries(linewidth=lw)
+      mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+      if n in [0]:
+        mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+      mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+      x, y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
+      tmp_bias = []
+      tmp_bias = np.copy(ecmf_rmse[n,:,:])
+      tmp_bias[tmp_bias == 0] = np.nan
+      uncal = mymap.pcolormesh(x,y,tmp_bias,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+      plt.title('ECMWF Week '+str(n+1))
+
+    plt.suptitle(season,fontweight='bold',fontsize=14,horizontalalignment='left')
+    plt.tight_layout(pad=2.5,w_pad=0.02,h_pad=0.4)
+    fig.subplots_adjust(right=0.90)
+    cbar_pos = [0.92, 0.22, 0.015, 0.55] #[left, bottom, width, height]
+    cbar_ax = fig.add_axes(cbar_pos)
+    cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='max')
+    plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
+    #plt.show()
+    plt.close()
+
+
+
+    # plot BSS
+    tercile_name = ['Below','Normal','Above']
+    cols = 'RdYlBu'
+    clabel1 = 'BSS'
+    lw = 1
+    nrow = 3
+    ncol = 5
+    size1 = [15,9]
+    gl = 20
+
+    cmin = -0.5
+    cmax = 0.5
+    cspc = 0.1
+    clevs = np.arange(cmin,cmax+cspc,cspc)
+    norm = BoundaryNorm(boundaries=clevs,ncolors=256)
+
+    for vv in [0,1]: # loop for own brier score
+      if vv == 0:
+        flag = 'comp_gpcc_clim'
+      elif vv == 1:
+        flag = 'comp_own_clim'
+      for tc in [0,1,2]:
+        fname_plot = dir_out+region+'_S2S_weekly_BSS_'+flag+'_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'_'+tercile_name[tc]
+        fig = plt.figure(figsize=(size1[0],size1[1]))
+
+        for n in np.arange(0,nleads):
+          plt.subplot(nrow,ncol,n+1)
+          mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+          mymap.drawcoastlines(linewidth=lw)
+          #mymap.drawcountries(linewidth=lw)
+          mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+          mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+          if n in [0]:
+            mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+          #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+          x,y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
+          mask_array = np.ma.array(ukmo_bss[tc,n,vv,:,:]*dry_mask, mask=np.isnan(dry_mask))
+          uncal = mymap.pcolormesh(x,y,mask_array,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+          plt.title('UKMO Week '+str(n+1))
+
+          plt.subplot(nrow,ncol,n+6)
+          mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+          mymap.drawcoastlines(linewidth=lw)
+          #mymap.drawcountries(linewidth=lw)
+          mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+          mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+          if n in [0]:
+            mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+          #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+          x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
+          mask_array = np.ma.array(ncep_bss[tc,n,vv,:,:]*dry_mask, mask=np.isnan(dry_mask))
+          uncal = mymap.pcolormesh(x,y,mask_array,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+          plt.title('NCEP Week '+str(n+1))
+
+          plt.subplot(nrow,ncol,n+11)
+          mymap = Basemap(projection='cyl',resolution='l',llcrnrlat=latlim[0],urcrnrlat=latlim[1],llcrnrlon=lonlim[0],urcrnrlon=lonlim[1])
+          mymap.drawcoastlines(linewidth=lw)
+          #mymap.drawcountries(linewidth=lw)
+          mymap.drawparallels(np.arange(-90,90,gl),labels=[0,0,0,0],labelstyle='+/-')
+          mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,0],labelstyle='+/-')
+          if n in [0]:
+            mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
+          mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
+          x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
+          mask_array = np.ma.array(ecmf_bss[tc,n,vv,:,:]*dry_mask, mask=np.isnan(dry_mask))
+          uncal = mymap.pcolormesh(x,y,mask_array,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
+          plt.title('ECMWF Week '+str(n+1))
+
+        plt.suptitle(season,fontweight='bold',fontsize=14,horizontalalignment='left')
+        plt.tight_layout(pad=2.5,w_pad=0.02,h_pad=0.4)
+        fig.subplots_adjust(right=0.90)
+        cbar_pos = [0.92, 0.22, 0.015, 0.55] #[left, bottom, width, height]
+
+        cbar_ax = fig.add_axes(cbar_pos)
+        cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='both')
+        plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
+      # plt.show()
+        plt.close()
 
 
 
