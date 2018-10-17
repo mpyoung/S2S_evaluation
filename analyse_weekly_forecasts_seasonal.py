@@ -48,6 +48,10 @@ region = 'Africa'
 latlim = [-40,40]
 lonlim = [-30,60]
 
+# define percentile categories to analyse
+percentiles = [100./3.,200./3.]
+p_name = 'tercile' # give categories an appropriate name
+
 years	= np.arange(2000,2010+1,1)	# december will always correspond to year-1
 nleads	= 5				# number of lead times (in weeks) in the data
 nweeks = 20 # number of weeks in season
@@ -393,130 +397,81 @@ for season in seasons:
   ecmf_bias_s	= np.nanmean(all_ecmf - all_gpcp,axis=(0,2))
 
   '''
-  Tercile probabilities
+  Forecast probabilities
   '''
-  percentiles = [100./3.,200./3.]
-
   fname_p_gpcp = dir_in+'stats/'+region+'_GPCP_p_tercile_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'.npy'
   fname_p_ukmo = dir_in+'stats/'+region+'_UKMO_p_tercile_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'.npy'
   fname_p_ncep = dir_in+'stats/'+region+'_NCEP_p_tercile_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'.npy'
   fname_p_ecmf = dir_in+'stats/'+region+'_ECMWF_p_tercile_'+season+'_'+str(years[0])+'_'+str(years[len(years)-1])+'.npy'
 
-  if os.path.exists(fname_p_ukmo) == False:
+  if os.path.exists(fname_p_ukmo) == True:
 
-    p_gpcp = np.zeros((3,nleads,nweeks,len(years),len(ukmo_lat),len(ukmo_lon)))
-    p_ukmo = np.zeros((3,2,nleads,nweeks,len(years),len(ukmo_lat),len(ukmo_lon)))
-    p_ncep = np.zeros((3,2,nleads,nweeks,len(years),len(ukmo_lat),len(ukmo_lon)))
-    p_ecmf = np.zeros((3,2,nleads,nweeks,len(years),len(ukmo_lat),len(ukmo_lon)))
-
-    for lead in np.arange(nleads):
-      for y in np.arange(0,len(years)):
-        nw = 0
-        for w in np.arange(0,20):
-          print 'week '+str(w+1)+' of 20'
-          if l == 0:
-            nw = nw + 1
-          if week_mid_dates[y,l,w,1] in keep_mon:
-            # compute the qth percentile of the data along the specified axis, while ignoring nan values.
-            # here, it means that find 33% and 66% of gpcp weekly mean precipitation value at each grid cell.
-
-            # for BSS analysis, we should be removing the current year being assessed
-            # from the calculation of percentiles
-            tmp_gpcp = []
-            tmp_gpcp = np.delete(all_gpcp[:,l,w,:,:],y,axis=0)
-            gpcp_percentiles = np.nanpercentile(tmp_gpcp,percentiles,axis=0)
-            curr_gpcp = np.copy(all_gpcp[y,l,w,:,:])
-
-            # 1. Compute observed probability (will be 1 or 0)
-            p_gpcp[0,lead,w,y,:,:] = mask_percentiles(curr_gpcp,gpcp_percentiles[0,:,:],'below')
-            p_gpcp[1,lead,w,y,:,:] = mask_percentiles(curr_gpcp,gpcp_percentiles,'between')
-            p_gpcp[2,lead,w,y,:,:] = mask_percentiles(curr_gpcp,gpcp_percentiles[1,:,:],'above')
-
-            # compute the probability that the ensemble was
-            # above/below each tercile
-            for e in np.arange(0,ecmf_nmembers):
-              if e < 7: # 1) do UKMO
-                #get percentiles for UKMO
-                tmp_ukmo = []
-                tmp_ukmo = np.delete(all_ukmo_ens[:,l,w,e,:,:],y,axis=0)
-                ukmo_percentiles = np.nanpercentile(tmp_ukmo,percentiles,axis=0)# all_gpcp in (11, 5, 20, 40, 47); gpcp_percentiles in (2, 40, 47)
-
-                curr_ukmo = np.copy(all_ukmo_ens[y,l,w,e,:,:].squeeze())
-                tmp_ukmo = np.zeros((3,2,len(ukmo_lat),len(ukmo_lon)))
-                tmp_ukmo[0,0,:,:] = mask_percentiles(curr_ukmo,gpcp_percentiles[0,:,:],'below')
-                tmp_ukmo[0,1,:,:] = mask_percentiles(curr_ukmo,ukmo_percentiles[0,:,:],'below')
-                tmp_ukmo[1,0,:,:] = mask_percentiles(curr_ukmo,gpcp_percentiles,'between')
-                tmp_ukmo[1,1,:,:] = mask_percentiles(curr_ukmo,ukmo_percentiles,'between')
-                tmp_ukmo[2,0,:,:] = mask_percentiles(curr_ukmo,gpcp_percentiles[1,:,:],'above')
-                tmp_ukmo[2,1,:,:] = mask_percentiles(curr_ukmo,ukmo_percentiles[1,:,:],'above')
-                for tr in np.arange(0,3):
-                  for r in [0,1]:
-                    p_ukmo[tr,r,lead,w,y,:,:] = p_ukmo[tr,r,lead,w,y,:,:] + tmp_ukmo[tr,r,:,:]
-
-                if e < 4:
-                  for g in np.arange(0,7): # lag loop
-                    #get percentiles for NCEP
-                    tmp_ncep = []
-                    tmp_ncep = np.delete(all_ncep_ens[:,l,w,g,e,:,:],y,axis=0)
-                    ncep_percentiles = np.nanpercentile(tmp_ncep,percentiles,axis=0)
-                    curr_ncep = np.copy(all_ncep_ens[y,l,w,g,e,:,:])
-                    tmp_ncep = np.zeros((3,2,len(ukmo_lat),len(ukmo_lon)))
-                    tmp_ncep[0,0,:,:] = mask_percentiles(curr_ncep,gpcp_percentiles[0,:,:],'below')
-                    tmp_ncep[0,1,:,:] = mask_percentiles(curr_ncep,ncep_percentiles[0,:,:],'below')
-                    tmp_ncep[1,0,:,:] = mask_percentiles(curr_ncep,gpcp_percentiles,'between')
-                    tmp_ncep[1,1,:,:] = mask_percentiles(curr_ncep,ncep_percentiles,'between')
-                    tmp_ncep[2,0,:,:] = mask_percentiles(curr_ncep,gpcp_percentiles[1,:,:],'above')
-                    tmp_ncep[2,1,:,:] = mask_percentiles(curr_ncep,ncep_percentiles[1,:,:],'above')
-                    for tr in np.arange(0,3):
-                      for r in [0,1]:
-                        p_ncep[tr,r,lead,w,y,:,:] = p_ncep[tr,r,lead,w,y,:,:] + tmp_ncep[tr,r,:,:]
-
-                # ECMWF
-                for g in np.arange(0,3):
-                  #get percentiles for UKMO
-                  tmp_ecmf = []
-                  tmp_ecmf = np.delete(all_ecmf_ens[:,l,w,g,e,:,:],y,axis=0)
-                  ecmf_percentiles = np.nanpercentile(tmp_ecmf,percentiles,axis=0)
-                  curr_ecmf = np.copy(all_ecmf_ens[y,l,w,g,e,:,:])
-                  tmp_ecmf = np.zeros((3,2,len(ukmo_lat),len(ukmo_lon)))
-                  tmp_ecmf[0,0,:,:] = mask_percentiles(curr_ecmf,gpcp_percentiles[0,:,:],'below')
-                  tmp_ecmf[0,1,:,:] = mask_percentiles(curr_ecmf,ecmf_percentiles[0,:,:],'below')
-                  tmp_ecmf[1,0,:,:] = mask_percentiles(curr_ecmf,gpcp_percentiles,'between')
-                  tmp_ecmf[1,1,:,:] = mask_percentiles(curr_ecmf,ecmf_percentiles,'between')
-                  tmp_ecmf[2,0,:,:] = mask_percentiles(curr_ecmf,gpcp_percentiles[1,:,:],'above')
-                  tmp_ecmf[2,1,:,:] = mask_percentiles(curr_ecmf,ecmf_percentiles[1,:,:],'above')
-                  for tr in np.arange(0,3):
-                    for r in [0,1]:
-                      p_ecmf[tr,r,lead,w,y,:,:] = p_ecmf[tr,r,lead,w,y,:,:] + tmp_ecmf[tr,r,:,:]
-
-    # At end compute actual Probability
-    p_ukmo = c_ukmo/ukmo_nmembers # probability
-    p_ncep = c_ncep/(ncep_nmembers*7) # probability
-    p_ecmf = c_ecmf/(ecmf_nmembers*3) # probability
-
-    # save probabilities
-    np.save(fname_p_gpcp,p_gpcp)
-    np.save(fname_p_ukmo,p_ukmo)
-    np.save(fname_p_ncep,p_ncep)
-    np.save(fname_p_ecmf,p_ecmf)
-
-  else:
+    p_gpcp = np.load(fname_p_gpcp)
     p_ukmo = np.load(fname_p_ukmo)
     p_ncep = np.load(fname_p_ncep)
     p_ecmf = np.load(fname_p_ecmf)
+
+    xxx
+    #make reliability diagram
+    # take each tercile and lead time and find obs frequency for
+    # each forecast probability bin
+    p_bin = np.arange(0,1+0.1,0.1)
+    reliability_fcst = np.zeros((3,3,nleads,2,len(p_bin)))
+
+    for ter in np.arange(0,3):
+      for l in np.arange(0,nleads):
+        curr_gpcp = np.copy(p_gpcp[ter,l,:,:,:,:].flatten())
+        for r in [0,1]:
+          curr_ukmo = np.copy(p_ukmo[ter,r,l,:,:,:,:].flatten())
+          curr_ncep = np.copy(p_ncep[ter,r,l,:,:,:,:].flatten())
+          curr_ecmf = np.copy(p_ecmf[ter,r,l,:,:,:,:].flatten())
+
+          for p in np.arange(0,len(p_bin)-1):
+            if p == 0 p < len(p_bin)-1:
+              p_id_ukmo = np.where((curr_ukmo >= p_bin[p]) & (curr_ukmo < p_bin[p+1]))[0]
+              p_id_ncep = np.where((curr_ncep >= p_bin[p]) & (curr_ncep < p_bin[p+1]))[0]
+              p_id_ecmf = np.where((curr_ecmf >= p_bin[p]) & (curr_ecmf < p_bin[p+1]))[0]
+            elif p == len(p_bin)-1:
+              p_id_ukmo = np.where((curr_ukmo > p_bin[p]))[0]
+              p_id_ncep = np.where((curr_ncep > p_bin[p]))[0]
+              p_id_ecmf = np.where((curr_ecmf > p_bin[p]))[0]
+
+            reliability_fcst[0,ter,l,r,p] = np.sum(curr_gpcp[p_id_ukmo])/float(len(p_id_ukmo))
+            reliability_fcst[1,ter,l,r,p] = np.sum(curr_gpcp[p_id_ncep])/float(len(p_id_ncep))
+            reliability_fcst[2,ter,l,r,p] = np.sum(curr_gpcp[p_id_ecmf])/float(len(p_id_ecmf))
+
+    model_ls= ['UKMO','NCEP','ECMWF']
+    fmt_ls	= ['-o','-x','-+']
+    ms_ls	= [8,10,10]
+    mw_ls	= [1,2,2]
+    col_ls	= ['firebrick','dodgerblue','forestgreen']
+
+    for l in np.arange(0,nleads):
+      plt.subplot(1,5,l+1)
+      for f in [0,1,2]:
+        plt.plot(p_bin,reliability_fcst[f,0,l,1,:],fmt_ls[f],color=col_ls[f],linewidth=2,ms=ms_ls[f],alpha=0.9,mew=mw_ls[f])
+      plt.xlabel('$P_{forecast}$')
+      plt.ylabel('$P_{observations}$')
+      plt.title('Lead '+str(l+1))
+    plt.show()
+
+    # BSS
     nw = len(years)*nweeks
-    ukmo_bs = np.zeros(p_ukmo.shape())
+    gpcp_bs_clim = np.zeros((3,nleads,len(ukmo_lat),len(ukmo_lon)))
+    ukmo_bs = np.zeros((3,2,nleads,len(ukmo_lat),len(ukmo_lon)))
+    ncep_bs = np.zeros((3,2,nleads,len(ukmo_lat),len(ukmo_lon)))
+    ecmf_bs = np.zeros((3,2,nleads,len(ukmo_lat),len(ukmo_lon)))
 
     # brier score
     for l in np.arange(0,nleads):
       for ter in np.arange(0,3):
-        gpcp_bs_clim[ter,l,:,:] = np.sum((0.33 - p_gpcp[ter,r,l,:,:,:,:])**2,axis=(0,1))/nw
+        gpcp_bs_clim[ter,l,:,:] = np.sum((0.33 - p_gpcp[ter,l,:,:,:,:])**2,axis=(0,1))/nw
         for r in [0,1]:
-          ukmo_bs[ter,r,l,:,:] = np.sum((p_ukmo[ter,r,l,:,:,:,:] - p_gpcp[ter,r,l,:,:,:,:])**2,axis=(0,1))/nw # brier score sum
-          ncep_bs[ter,r,l,:,:] = np.sum((p_ncep[ter,r,l,:,:,:,:] - p_gpcp[ter,r,l,:,:,:,:])**2,axis=(0,1))/nw # brier score sum
-          ecmf_bs[ter,r,l,:,:] = np.sum((p_ecmf[ter,r,l,:,:,:,:] - p_gpcp[ter,r,l,:,:,:,:])**2,axis=(0,1))/nw # brier score sum
+          ukmo_bs[ter,r,l,:,:] = np.sum((p_ukmo[ter,r,l,:,:,:,:] - p_gpcp[ter,l,:,:,:,:])**2,axis=(0,1))/nw # brier score sum
+          ncep_bs[ter,r,l,:,:] = np.sum((p_ncep[ter,r,l,:,:,:,:] - p_gpcp[ter,l,:,:,:,:])**2,axis=(0,1))/nw # brier score sum
+          ecmf_bs[ter,r,l,:,:] = np.sum((p_ecmf[ter,r,l,:,:,:,:] - p_gpcp[ter,l,:,:,:,:])**2,axis=(0,1))/nw # brier score sum
 
-    gpcp_bs_clim = gpcp_bs_clim/nw	# nw = 220
+    # gpcp_bs_clim = gpcp_bs_clim/nw	# nw = 220
     ukmo_bss = np.zeros(ukmo_bs.shape)
     ncep_bss = np.zeros(ncep_bs.shape)
     ecmf_bss = np.zeros(ecmf_bs.shape)
@@ -540,7 +495,7 @@ for season in seasons:
         rps_ukmo[r,l,:,:,:,:] = (p_ukmo[0,r,l,:,:,:,:] - p_gpcp[0,r,l,:,:,:,:])**2 + ((p_ukmo[0,r,l,:,:,:,:] + p_ukmo[1,r,l,:,:,:,:]) - (p_gpcp[0,r,l,:,:,:,:] + p_gpcp[1,r,l,:,:,:,:]))**2 + ((p_ukmo[0,r,l,:,:,:,:] + p_ukmo[1,r,l,:,:,:,:] + p_ukmo[2,r,l,:,:,:,:]) - (p_gpcp[0,r,l,:,:,:,:] + p_gpcp[1,r,l,:,:,:,:] + p_gpcp[2,r,l,:,:,:,:]))**2
 
     rpss_ukmo = 1 - (np.mean(rps_ukmo,axis=(2,3))/np.mean(rps_clim,axis=(2,3)))
-
+    xxx
     '''
     Plot metrics
     - regional averages at each lead time
@@ -1168,7 +1123,7 @@ for season in seasons:
             mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
           #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
           x,y = mymap(*np.meshgrid(ukmo_lon,ukmo_lat))
-          mask_array = np.ma.array(ukmo_bss[tc,n,vv,:,:]*dry_mask, mask=np.isnan(dry_mask))
+          mask_array = np.ma.array(ukmo_bss[tc,vv,n,:,:]*dry_mask, mask=np.isnan(dry_mask))
           uncal = mymap.pcolormesh(x,y,mask_array,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
           plt.title('UKMO Week '+str(n+1))
 
@@ -1182,7 +1137,7 @@ for season in seasons:
             mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
           #mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
           x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-          mask_array = np.ma.array(ncep_bss[tc,n,vv,:,:]*dry_mask, mask=np.isnan(dry_mask))
+          mask_array = np.ma.array(ncep_bss[tc,vv,n,:,:]*dry_mask, mask=np.isnan(dry_mask))
           uncal = mymap.pcolormesh(x,y,mask_array,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
           plt.title('NCEP Week '+str(n+1))
 
@@ -1196,7 +1151,7 @@ for season in seasons:
             mymap.drawparallels(np.arange(-90,90,gl),labels=[1,0,0,0],labelstyle='+/-')
           mymap.drawmeridians(np.arange(0,360,gl),labels=[0,0,0,1],labelstyle='+/-')
           x,y = mymap(*np.meshgrid(ncep_lon,ncep_lat))
-          mask_array = np.ma.array(ecmf_bss[tc,n,vv,:,:]*dry_mask, mask=np.isnan(dry_mask))
+          mask_array = np.ma.array(ecmf_bss[tc,vv,n,:,:]*dry_mask, mask=np.isnan(dry_mask))
           uncal = mymap.pcolormesh(x,y,mask_array,vmin=cmin,vmax=cmax,cmap=cols,norm=norm)
           plt.title('ECMWF Week '+str(n+1))
 
@@ -1207,6 +1162,8 @@ for season in seasons:
 
         cbar_ax = fig.add_axes(cbar_pos)
         cbar = fig.colorbar(uncal,cax=cbar_ax,label=clabel1,extend='both')
+        plt.show()
+
         plt.savefig(fname_plot+'.pdf',bbox_inches='tight')
       # plt.show()
         plt.close()
