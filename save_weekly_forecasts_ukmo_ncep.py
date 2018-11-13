@@ -196,6 +196,8 @@ for y in years:
           ncep_ymd1_id	= np.intersect1d(ncep_ym1_id ,ncep_d1_id)
           ncep_ymdh1_id	= np.intersect1d(ncep_ymd1_id,ncep_h1_id)
           ncep_ymd2_id	= np.intersect1d(ncep_ym2_id ,ncep_d2_id)
+
+          xxx
           # have to add an extra index onto the end of time id to
           # rainfall accumulated upto zero Z
           ncep_time_id	= np.arange(ncep_ymdh1_id[0],ncep_ymd2_id[len(ncep_ymd2_id)-1]+2)	# value is 28, 6-hourly data for a week, and shift one day backward
