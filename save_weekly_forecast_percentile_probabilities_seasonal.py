@@ -49,11 +49,14 @@ latlim = [-40,40]
 lonlim = [-30,60]
 
 # define percentile categories to analyse
-percentiles = [100./3.,200./3.]
-p_name = 'tercile' # give categories an appropriate name
+# percentiles = [100./3.,200./3.]
+# p_name = 'tercile' # give categories an appropriate name
+
+percentiles = [20,40,60,80]
+p_name = 'quintile' # give categories an appropriate name
 
 years	= np.arange(2000,2010+1,1)	# december will always correspond to year-1
-nleads	= 5				# number of lead times (in weeks) in the data
+nleads	= 5	# number of lead times (in weeks) in the data
 nweeks = 20 # number of weeks in season
 #season	= 'JJA'
 seasons = ['SON']#['JJA']#['DJF','MAM','JJA','SON']
@@ -362,9 +365,9 @@ for season in seasons:
 
 
     # At end compute actual Probability
-    pf_ukmo = p_ukmo/ukmo_nmembers # probability
-    pf_ncep = p_ncep/ncep_nmembers # probability, normalise by N ensemble members
-    pf_ecmf = p_ecmf/ecmf_nmembers # probability
+    pf_ukmo = p_ukmo/float(ukmo_nmembers) # probability
+    pf_ncep = p_ncep/float(ncep_nmembers) # probability, normalise by N ensemble members
+    pf_ecmf = p_ecmf/float(ecmf_nmembers) # probability
 
     # save probabilities
     np.save(fname_p_gpcp,p_gpcp)
